@@ -6,7 +6,7 @@ type Executor interface {
 }
 
 type goExecutor struct {
-	PackageName string
+	Package string `json:"package"`
 }
 
 func (g *goExecutor) Execute(args []string) error {

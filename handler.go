@@ -8,7 +8,7 @@ import (
 
 func httpJsonError(w http.ResponseWriter, msg string, code int) {
 	e := struct {
-		Error string
+		Error string `json:"error"`
 	}{
 		Error: msg,
 	}
@@ -25,9 +25,9 @@ type Submission struct {
 
 func (s *Submission) UnmarshalJSON(d []byte) error {
 	metadata := struct {
-		Language         string
-		TaskName         string
-		LanguageSpecific json.RawMessage
+		Language   string          `json:"language"`
+		TaskName   string          `json:"taskName"`
+		Submission json.RawMessage `json:"submission"`
 	}{}
 
 	err := json.Unmarshal(d, &metadata)
@@ -41,7 +41,7 @@ func (s *Submission) UnmarshalJSON(d []byte) error {
 	switch s.Language {
 	case "go":
 		var e goExecutor
-		err := json.Unmarshal(metadata.LanguageSpecific, &e)
+		err := json.Unmarshal(metadata.Submission, &e)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal language specific json: %v", err)
 		}
