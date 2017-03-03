@@ -50,6 +50,6 @@ func (s *Server) processSubmissions() {
 func (s *Server) Start() error {
 	go s.processSubmissions()
 	mux := http.NewServeMux()
-	mux.HandleFunc("/submit", submitHandler)
+	mux.HandleFunc("/submit", submitHandler(s.pendingSubmissions))
 	return http.ListenAndServe(s.address, mux)
 }
