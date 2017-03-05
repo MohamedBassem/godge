@@ -1,7 +1,9 @@
 package godge
 
 import (
+	"bytes"
 	"fmt"
+	"strings"
 
 	docker "github.com/fsouza/go-dockerclient"
 )
@@ -9,16 +11,60 @@ import (
 type Executor interface {
 	SetDockerClient(*docker.Client)
 	Execute(args []string) error
+	ReadFileFromContainer(path string) (string, error)
+	Stdout() (string, error)
+	Stderr() (string, error)
 	Stop() error
 }
 
 type baseExecutor struct {
 	dockerClient *docker.Client
 	container    *docker.Container
+	workDir      string
 }
 
 func (b *baseExecutor) SetDockerClient(d *docker.Client) {
 	b.dockerClient = d
+}
+
+func (b *baseExecutor) ReadFileFromContainer(path string) (string, error) {
+	buf := new(bytes.Buffer)
+	option := docker.DownloadFromContainerOptions{
+		OutputStream: buf,
+		Path:         fmt.Sprintf("%v/%v", b.workDir, path),
+	}
+	if err := b.dockerClient.DownloadFromContainer(b.container.ID, option); err != nil {
+		return "", fmt.Errorf("failed to read file from container: %v", err)
+	}
+	return string(buf.Bytes()), nil
+}
+
+func (b *baseExecutor) Stdout() (string, error) {
+	buf := new(bytes.Buffer)
+	option := docker.LogsOptions{
+		OutputStream: buf,
+		Container:    b.container.ID,
+		Stdout:       true,
+		Tail:         "all",
+	}
+	if err := b.dockerClient.Logs(option); err != nil {
+		return "", fmt.Errorf("failed to read stdout from container: %v", err)
+	}
+	return string(buf.Bytes()), nil
+}
+
+func (b *baseExecutor) Stderr() (string, error) {
+	buf := new(bytes.Buffer)
+	option := docker.LogsOptions{
+		ErrorStream: buf,
+		Container:   b.container.ID,
+		Stderr:      true,
+		Tail:        "all",
+	}
+	if err := b.dockerClient.Logs(option); err != nil {
+		return "", fmt.Errorf("failed to read stderr from container: %v", err)
+	}
+	return string(buf.Bytes()), nil
 }
 
 type GoExecutor struct {
@@ -37,18 +83,24 @@ func (g *GoExecutor) Execute(args []string) error {
 		return fmt.Errorf("failed to unzip package: %v", err)
 	}
 
-	cmd := []string{"go-wrapper", "download", "&&", "go-wrapper", "install", "&&", "go-wrapper", "run"}
+	cmd := []string{"/bin/bash", "-c", fmt.Sprintf(`
+	set -e;
+	go-wrapper download > /dev/null 2>&1;
+	go-wrapper install > /dev/null 2>&1;
+	app %v;`, strings.Join(args, " "))}
 	cmd = append(cmd, args...)
+	wdir := "/go/src/app"
+	g.workDir = wdir
 	option := docker.CreateContainerOptions{
 		Name: randomString(20),
 		Config: &docker.Config{
 			Image:      "golang:1.8",
 			Cmd:        cmd,
-			WorkingDir: "/go/src/app",
+			WorkingDir: wdir,
 		},
 		HostConfig: &docker.HostConfig{
 			Binds: []string{
-				fmt.Sprintf("%v:/go/src/app", pdir),
+				fmt.Sprintf("%v:%v", pdir, wdir),
 			},
 		},
 	}

@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"time"
 
 	"github.com/MohamedBassem/godge"
 )
@@ -13,6 +15,12 @@ var tasks = []godge.Task{
 			{
 				Name: "PrintsHelloWorld",
 				Func: func(sub *godge.Submission) error {
+					err := sub.Executor.Execute([]string{})
+					if err != nil {
+						return err
+					}
+					time.Sleep(1 * time.Second)
+					fmt.Println(sub.Executor.Stdout())
 					return nil
 				},
 			},
