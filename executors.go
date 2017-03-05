@@ -4,13 +4,15 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"sync"
+	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 )
 
 type Executor interface {
 	SetDockerClient(*docker.Client)
-	Execute(args []string) error
+	Execute(args []string, dur time.Duration) error
 	ReadFileFromContainer(path string) (string, error)
 	Stdout() (string, error)
 	Stderr() (string, error)
@@ -21,6 +23,7 @@ type baseExecutor struct {
 	dockerClient *docker.Client
 	container    *docker.Container
 	workDir      string
+	stoppedOnce  sync.Once
 }
 
 func (b *baseExecutor) SetDockerClient(d *docker.Client) {
@@ -67,12 +70,28 @@ func (b *baseExecutor) Stderr() (string, error) {
 	return string(buf.Bytes()), nil
 }
 
+func (g *baseExecutor) Stop() error {
+	var err error
+	g.stoppedOnce.Do(func() {
+		if err = g.dockerClient.StopContainer(g.container.ID, 2); err != nil {
+			err = fmt.Errorf("failed to stop container: %v", err)
+			return
+		}
+	})
+	return err
+}
+
+func (g *baseExecutor) stopAfter(dur time.Duration) {
+	time.Sleep(dur)
+	g.Stop()
+}
+
 type GoExecutor struct {
 	baseExecutor
 	PackageArchive []byte `json:"packageArchive"`
 }
 
-func (g *GoExecutor) Execute(args []string) error {
+func (g *GoExecutor) Execute(args []string, dur time.Duration) error {
 	if g.dockerClient == nil {
 		// Panic if there's a logic error
 		panic("Docker client must be set for go executor")
@@ -112,12 +131,6 @@ func (g *GoExecutor) Execute(args []string) error {
 	if err := g.dockerClient.StartContainer(g.container.ID, nil); err != nil {
 		return fmt.Errorf("failed to start container: %v", err)
 	}
-	return nil
-}
-
-func (g *GoExecutor) Stop() error {
-	if err := g.dockerClient.StopContainer(g.container.ID, 2); err != nil {
-		return fmt.Errorf("failed to stop container: %v", err)
-	}
+	go g.stopAfter(dur)
 	return nil
 }
