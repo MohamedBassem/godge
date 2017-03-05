@@ -9,7 +9,12 @@ import (
 	"math/rand"
 	"os"
 	"path/filepath"
+	"time"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 func randomString(n int) string {
 	letterBytes := "abcdefghijklmnopkrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -24,6 +29,10 @@ func unzipToTmpDir(b []byte) (string, error) {
 	tdir, err := ioutil.TempDir("", "godge")
 	if err != nil {
 		return "", fmt.Errorf("failed to create a tmp dir: %v", err)
+	}
+	tdir, err = filepath.EvalSymlinks(tdir)
+	if err != nil {
+		return "", fmt.Errorf("failed to eval symlinks: %v", err)
 	}
 	r := bytes.NewReader(b)
 	zr, err := zip.NewReader(r, r.Size())
