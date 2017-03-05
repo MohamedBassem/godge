@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+
+	docker "github.com/fsouza/go-dockerclient"
 )
 
 type Server struct {
@@ -11,14 +13,23 @@ type Server struct {
 	tasks              map[string]Task
 	pendingSubmissions chan *Submission
 	requestErrorChan   chan error
+	dockerClient       *docker.Client
 }
 
-func NewServer(address string) *Server {
+func NewServer(address string, dockerAddress string) (*Server, error) {
+	dc, err := docker.NewClient(dockerAddress)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to docker daemon: %v", err)
+	}
+	if err := dc.Ping(); err != nil {
+		return nil, fmt.Errorf("failed to connect to docker daemon: %v", err)
+	}
 	return &Server{
 		address:            address,
 		tasks:              make(map[string]Task),
 		pendingSubmissions: make(chan *Submission),
-	}
+		dockerClient:       dc,
+	}, nil
 }
 
 func (s *Server) RegisterTask(t Task) {
@@ -43,6 +54,7 @@ func (s *Server) reportResult(sub *Submission, err error) {
 
 func (s *Server) processSubmissions() {
 	for sub := range s.pendingSubmissions {
+		sub.Executor.SetDockerClient(s.dockerClient)
 		s.reportResult(sub, s.handleSubmission(sub))
 	}
 }

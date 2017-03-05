@@ -32,7 +32,10 @@ var tasks = []godge.Task{
 }
 
 func main() {
-	server := godge.NewServer(":8080")
+	server, err := godge.NewServer(":8080", "unix:///var/run/docker.sock")
+	if err != nil {
+		log.Fatal(err)
+	}
 	for _, t := range tasks {
 		server.RegisterTask(t)
 	}
