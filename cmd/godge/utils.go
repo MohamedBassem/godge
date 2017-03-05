@@ -24,17 +24,38 @@ func zipCurrentDir() ([]byte, error) {
 		if err != nil {
 			return err
 		}
+
+		header, err := zip.FileInfoHeader(info)
+		if err != nil {
+			return err
+		}
+
+		if !info.IsDir() {
+			header.Method = zip.Deflate
+		}
+
+		header.Name = path
+
+		if info.IsDir() {
+			header.Name += "/"
+		}
+
+		writer, err := archive.CreateHeader(header)
+		if err != nil {
+			return err
+		}
+
 		if info.IsDir() {
 			return nil
 		}
-		writer, err := archive.Create(path)
+
 		file, err := os.Open(path)
 		if err != nil {
-			return fmt.Errorf("failed to read file %v: %v", path, err)
+			return fmt.Errorf("failed to read file: %v", err)
 		}
-		defer file.Close()
+
 		if _, err := io.Copy(writer, file); err != nil {
-			return fmt.Errorf("failed to copy file %v: %v", path, err)
+			return fmt.Errorf("failed to copy file: %v", err)
 		}
 		return nil
 	})
