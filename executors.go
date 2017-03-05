@@ -37,11 +37,14 @@ func (g *goExecutor) Execute(args []string) error {
 		return fmt.Errorf("failed to unzip package: %v", err)
 	}
 
+	cmd := []string{"go-wrapper", "download", "&&", "go-wrapper", "install", "&&", "go-wrapper", "run"}
+	cmd = append(cmd, args...)
 	option := docker.CreateContainerOptions{
 		Name: randomString(20),
 		Config: &docker.Config{
 			Image:      "golang:1.8",
-			Entrypoint: args,
+			Cmd:        cmd,
+			WorkingDir: "/go/src/app",
 		},
 		HostConfig: &docker.HostConfig{
 			Binds: []string{
