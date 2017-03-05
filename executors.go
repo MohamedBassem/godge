@@ -21,18 +21,18 @@ func (b *baseExecutor) SetDockerClient(d *docker.Client) {
 	b.dockerClient = d
 }
 
-type goExecutor struct {
+type GoExecutor struct {
 	baseExecutor
-	packgeArchive []byte `json:"packageArchive"`
+	PackageArchive []byte `json:"packageArchive"`
 }
 
-func (g *goExecutor) Execute(args []string) error {
+func (g *GoExecutor) Execute(args []string) error {
 	if g.dockerClient == nil {
 		// Panic if there's a logic error
 		panic("Docker client must be set for go executor")
 	}
 
-	pdir, err := unzipToTmpDir(g.packgeArchive)
+	pdir, err := unzipToTmpDir(g.PackageArchive)
 	if err != nil {
 		return fmt.Errorf("failed to unzip package: %v", err)
 	}
@@ -63,7 +63,7 @@ func (g *goExecutor) Execute(args []string) error {
 	return nil
 }
 
-func (g *goExecutor) Stop() error {
+func (g *GoExecutor) Stop() error {
 	if err := g.dockerClient.StopContainer(g.container.ID, 2); err != nil {
 		return fmt.Errorf("failed to stop container: %v", err)
 	}

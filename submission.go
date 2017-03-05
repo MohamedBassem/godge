@@ -6,9 +6,9 @@ import (
 )
 
 type Submission struct {
-	Language string
-	TaskName string
-	Executor Executor
+	Language string   `json:"language"`
+	TaskName string   `json:"taskName"`
+	Executor Executor `json:"submission"`
 }
 
 func (s *Submission) UnmarshalJSON(d []byte) error {
@@ -28,7 +28,7 @@ func (s *Submission) UnmarshalJSON(d []byte) error {
 
 	switch s.Language {
 	case "go":
-		var e goExecutor
+		var e GoExecutor
 		err := json.Unmarshal(metadata.Submission, &e)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal language specific json: %v", err)
