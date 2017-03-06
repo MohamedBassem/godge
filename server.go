@@ -14,7 +14,7 @@ type users map[string]string
 type Server struct {
 	address            string
 	tasks              map[string]Task
-	pendingSubmissions chan *Submission
+	pendingSubmissions chan submissionRequest
 	requestErrorChan   chan error
 	dockerClient       *docker.Client
 	users              users
@@ -31,7 +31,7 @@ func NewServer(address string, dockerAddress string) (*Server, error) {
 	return &Server{
 		address:            address,
 		tasks:              make(map[string]Task),
-		pendingSubmissions: make(chan *Submission, 20),
+		pendingSubmissions: make(chan submissionRequest),
 		dockerClient:       dc,
 		users:              make(users),
 	}, nil
@@ -52,15 +52,27 @@ func (s *Server) handleSubmission(sub *Submission) error {
 	return nil
 }
 
+type submissionRequest struct {
+	result     chan error
+	submission *Submission
+}
+
 func (s *Server) reportResult(sub *Submission, err error) {
 	// TODO(mbassem): Report actual result to the scoreboard
 	log.Printf("%v submission for %v: %v", sub.Language, sub.TaskName, err)
 }
 
 func (s *Server) processSubmissions() {
-	for sub := range s.pendingSubmissions {
-		s.reportResult(sub, s.handleSubmission(sub))
+	for sreq := range s.pendingSubmissions {
+		err := s.handleSubmission(sreq.submission)
+		sreq.result <- err
+		s.reportResult(sreq.submission, err)
 	}
+}
+
+type SubmissionResponse struct {
+	Passed bool   `json:"passed"`
+	Error  string `json:"error"`
 }
 
 func (s *Server) submitHTTPHandler(w http.ResponseWriter, req *http.Request) {
@@ -72,16 +84,31 @@ func (s *Server) submitHTTPHandler(w http.ResponseWriter, req *http.Request) {
 		httpJsonError(w, "Wrong username or password", http.StatusUnauthorized)
 		return
 	}
-	var sreq Submission
-	err := json.NewDecoder(req.Body).Decode(&sreq)
+	var sub Submission
+	err := json.NewDecoder(req.Body).Decode(&sub)
 	if err != nil {
 		httpJsonError(w, fmt.Sprintf("Failed to decode request body: %v", err), http.StatusBadRequest)
 		return
 	}
-	sreq.Executor.setDockerClient(s.dockerClient)
+	sub.Executor.setDockerClient(s.dockerClient)
 
-	s.pendingSubmissions <- &sreq
-	w.WriteHeader(http.StatusNoContent)
+	res := make(chan error)
+	s.pendingSubmissions <- submissionRequest{
+		result:     res,
+		submission: &sub,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	result := <-res
+	resp := SubmissionResponse{
+		Passed: result == nil,
+		Error:  result.Error(),
+	}
+
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		httpJsonError(w, "Failed to encode response", http.StatusInternalServerError)
+		return
+	}
 }
 
 type RegisterRequest struct {

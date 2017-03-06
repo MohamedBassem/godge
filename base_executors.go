@@ -68,10 +68,10 @@ func (b *baseExecutor) Stderr() (string, error) {
 	return string(buf.Bytes()), nil
 }
 
-func (g *baseExecutor) Stop() error {
+func (b *baseExecutor) Stop() error {
 	var err error
-	g.stoppedOnce.Do(func() {
-		if err = g.dockerClient.StopContainer(g.container.ID, 2); err != nil {
+	b.stoppedOnce.Do(func() {
+		if err = b.dockerClient.StopContainer(b.container.ID, 2); err != nil {
 			err = fmt.Errorf("failed to stop container: %v", err)
 			return
 		}

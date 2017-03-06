@@ -67,8 +67,6 @@ func (s *submitCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 		log.Printf("Unsupported language: %v", s.language)
 		return subcommands.ExitFailure
 	}
-
-	log.Println("Submitted ..")
 	return subcommands.ExitSuccess
 }
 
@@ -97,14 +95,28 @@ func (s *submitCmd) submit(executor func() (godge.Executor, error)) error {
 	}
 	req.SetBasicAuth(s.username, s.password)
 
-	resp, err := http.DefaultClient.Do(req)
+	client := &http.Client{
+		Timeout: 0,
+	}
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to submit request: %v", err)
 	}
+	defer resp.Body.Close()
 	if err := checkResponseError(resp); err != nil {
 		return fmt.Errorf("submission failed: %v", err)
 	}
-	defer resp.Body.Close()
+
+	var result godge.SubmissionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return fmt.Errorf("failed to decode response: %v", err)
+	}
+
+	if result.Passed {
+		log.Println("You submission passed!")
+	} else {
+		log.Printf("You submission failed: %v", result.Error)
+	}
 
 	return nil
 }

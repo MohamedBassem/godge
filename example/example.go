@@ -11,17 +11,24 @@ import (
 var tasks = []godge.Task{
 	{
 		Name: "HelloWorld",
+		Desc: "Your program should print 'Hello World!' to stdout.",
 		Tests: []godge.Test{
 			{
 				Name: "PrintsHelloWorld",
 				Func: func(sub *godge.Submission) error {
-					err := sub.Executor.Execute([]string{})
-					if err != nil {
+					if err := sub.Executor.Execute([]string{}); err != nil {
 						return err
 					}
 					defer sub.Executor.Stop()
 					time.Sleep(1 * time.Second)
-					fmt.Println(sub.Executor.Stdout())
+					want := "Hello World!"
+					got, err := sub.Executor.Stdout()
+					if err != nil {
+						return err
+					}
+					if got != want {
+						return fmt.Errorf("want: %v, got: %v", want, got)
+					}
 					return nil
 				},
 			},
