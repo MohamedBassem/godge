@@ -3,10 +3,15 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+
+	"github.com/MohamedBassem/godge"
 )
 
 func zipCurrentDir() ([]byte, error) {
@@ -67,4 +72,13 @@ func zipCurrentDir() ([]byte, error) {
 		return nil, fmt.Errorf("failed to close archive: %v", err)
 	}
 	return zipfile.Bytes(), nil
+}
+
+func checkResponseError(resp *http.Response) error {
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		var e godge.ErrorResponse
+		json.NewDecoder(resp.Body).Decode(&e)
+		return errors.New(e.Error)
+	}
+	return nil
 }

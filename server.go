@@ -33,6 +33,7 @@ func NewServer(address string, dockerAddress string) (*Server, error) {
 		tasks:              make(map[string]Task),
 		pendingSubmissions: make(chan *Submission, 20),
 		dockerClient:       dc,
+		users:              make(users),
 	}, nil
 }
 
@@ -106,6 +107,7 @@ func (s *Server) registerHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	s.users[rreq.Username] = rreq.Password
+	log.Printf("User %v registered", rreq.Username)
 
 	w.WriteHeader(http.StatusCreated)
 }

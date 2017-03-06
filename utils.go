@@ -85,10 +85,12 @@ func unzipToTmpDir(b []byte) (string, error) {
 	return tdir, nil
 }
 
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
 func httpJsonError(w http.ResponseWriter, msg string, code int) {
-	e := struct {
-		Error string `json:"error"`
-	}{
+	e := ErrorResponse{
 		Error: msg,
 	}
 
