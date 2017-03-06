@@ -54,7 +54,7 @@ func (s *Server) reportResult(sub *Submission, err error) {
 
 func (s *Server) processSubmissions() {
 	for sub := range s.pendingSubmissions {
-		sub.Executor.SetDockerClient(s.dockerClient)
+		sub.Executor.setDockerClient(s.dockerClient)
 		s.reportResult(sub, s.handleSubmission(sub))
 	}
 }

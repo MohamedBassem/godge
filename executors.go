@@ -11,7 +11,7 @@ import (
 )
 
 type Executor interface {
-	SetDockerClient(*docker.Client)
+	setDockerClient(*docker.Client)
 	Execute(args []string, dur time.Duration) error
 	ReadFileFromContainer(path string) (string, error)
 	Stdout() (string, error)
@@ -26,7 +26,7 @@ type baseExecutor struct {
 	stoppedOnce  sync.Once
 }
 
-func (b *baseExecutor) SetDockerClient(d *docker.Client) {
+func (b *baseExecutor) setDockerClient(d *docker.Client) {
 	b.dockerClient = d
 }
 
