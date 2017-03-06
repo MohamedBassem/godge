@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sort"
 
 	docker "github.com/fsouza/go-dockerclient"
 )
@@ -207,11 +208,13 @@ func (s *Server) scoreboardHTTPHandler(w http.ResponseWriter, req *http.Request)
 	for k := range s.tasks {
 		ts = append(ts, k)
 	}
+	sort.Strings(ts)
 
 	var us []string
 	for k := range s.users {
 		us = append(us, k)
 	}
+	sort.Strings(us)
 
 	scoreboardTmpl.Execute(w, map[string]interface{}{
 		"Results": s.results.get,
