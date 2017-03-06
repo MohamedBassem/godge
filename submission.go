@@ -16,6 +16,7 @@ func (s *Submission) UnmarshalJSON(d []byte) error {
 	metadata := struct {
 		Language   string          `json:"language"`
 		TaskName   string          `json:"taskName"`
+		Username   string          `json:"username"`
 		Submission json.RawMessage `json:"submission"`
 	}{}
 
@@ -26,6 +27,7 @@ func (s *Submission) UnmarshalJSON(d []byte) error {
 
 	s.Language = metadata.Language
 	s.TaskName = metadata.TaskName
+	s.Username = metadata.Username
 
 	switch s.Language {
 	case "go":

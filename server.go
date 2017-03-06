@@ -9,6 +9,22 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 )
 
+type results map[string]map[string]string
+
+func (r results) set(user, task string, val string) {
+	if _, ok := r[user]; !ok {
+		r[user] = make(map[string]string)
+	}
+	r[user][task] = val
+}
+
+func (r results) get(user, task string) string {
+	if _, ok := r[user]; !ok {
+		return ""
+	}
+	return r[user][task]
+}
+
 type users map[string]string
 
 type Server struct {
@@ -18,6 +34,7 @@ type Server struct {
 	requestErrorChan   chan error
 	dockerClient       *docker.Client
 	users              users
+	results            results
 }
 
 func NewServer(address string, dockerAddress string) (*Server, error) {
@@ -34,6 +51,7 @@ func NewServer(address string, dockerAddress string) (*Server, error) {
 		pendingSubmissions: make(chan submissionRequest),
 		dockerClient:       dc,
 		users:              make(users),
+		results:            make(results),
 	}, nil
 }
 
@@ -58,8 +76,12 @@ type submissionRequest struct {
 }
 
 func (s *Server) reportResult(sub *Submission, err error) {
-	// TODO(mbassem): Report actual result to the scoreboard
 	log.Printf("%v submission for %v: %v", sub.Language, sub.TaskName, err)
+	if err != nil {
+		s.results.set(sub.Username, sub.TaskName, "Failed")
+		return
+	}
+	s.results.set(sub.Username, sub.TaskName, "Succeeded")
 }
 
 func (s *Server) processSubmissions() {
@@ -100,9 +122,17 @@ func (s *Server) submitHTTPHandler(w http.ResponseWriter, req *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	result := <-res
+
 	resp := SubmissionResponse{
-		Passed: result == nil,
-		Error:  result.Error(),
+		Passed: true,
+		Error:  "",
+	}
+
+	if result != nil {
+		resp = SubmissionResponse{
+			Passed: false,
+			Error:  result.Error(),
+		}
 	}
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
@@ -165,11 +195,37 @@ func (s *Server) tasksHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+func (s *Server) scoreboardHTTPHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		httpJsonError(w, "Only GET requests are allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	w.Header().Add("Content-Type", "text/html")
+
+	var ts []string
+	for k := range s.tasks {
+		ts = append(ts, k)
+	}
+
+	var us []string
+	for k := range s.users {
+		us = append(us, k)
+	}
+
+	scoreboardTmpl.Execute(w, map[string]interface{}{
+		"Results": s.results.get,
+		"Users":   us,
+		"Tasks":   ts,
+	})
+}
+
 func (s *Server) Start() error {
 	go s.processSubmissions()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/submit", s.submitHTTPHandler)
 	mux.HandleFunc("/register", s.registerHTTPHandler)
 	mux.HandleFunc("/tasks", s.tasksHTTPHandler)
+	mux.HandleFunc("/scoreboard", s.scoreboardHTTPHandler)
 	return http.ListenAndServe(s.address, mux)
 }
