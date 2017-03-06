@@ -15,10 +15,11 @@ var tasks = []godge.Task{
 			{
 				Name: "PrintsHelloWorld",
 				Func: func(sub *godge.Submission) error {
-					err := sub.Executor.Execute([]string{}, 3*time.Second)
+					err := sub.Executor.Execute([]string{})
 					if err != nil {
 						return err
 					}
+					defer sub.Executor.Stop()
 					time.Sleep(1 * time.Second)
 					fmt.Println(sub.Executor.Stdout())
 					return nil
