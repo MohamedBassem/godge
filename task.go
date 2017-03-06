@@ -8,8 +8,9 @@ type Test struct {
 }
 
 type Task struct {
-	Name  string
-	Tests []Test
+	Name  string `json:"name"`
+	Desc  string `json:"desc"`
+	Tests []Test `json:"-"`
 }
 
 func (t *Task) Execute(s *Submission) error {

@@ -4,7 +4,6 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -77,8 +76,10 @@ func zipCurrentDir() ([]byte, error) {
 func checkResponseError(resp *http.Response) error {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		var e godge.ErrorResponse
-		json.NewDecoder(resp.Body).Decode(&e)
-		return errors.New(e.Error)
+		if err := json.NewDecoder(resp.Body).Decode(&e); err != nil {
+			return fmt.Errorf("(%v)", resp.StatusCode)
+		}
+		return fmt.Errorf("(%v) : %v", resp.StatusCode, e.Error)
 	}
 	return nil
 }

@@ -118,10 +118,31 @@ func (s *Server) registerHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+func (s *Server) tasksHTTPHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodGet {
+		httpJsonError(w, "Only GET requests are allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var ts []Task
+
+	for _, t := range s.tasks {
+		ts = append(ts, t)
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	if err := json.NewEncoder(w).Encode(ts); err != nil {
+		httpJsonError(w, "Failed to encode tasks", http.StatusInternalServerError)
+		return
+	}
+}
+
 func (s *Server) Start() error {
 	go s.processSubmissions()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/submit", s.submitHTTPHandler)
 	mux.HandleFunc("/register", s.registerHTTPHandler)
+	mux.HandleFunc("/tasks", s.tasksHTTPHandler)
 	return http.ListenAndServe(s.address, mux)
 }
