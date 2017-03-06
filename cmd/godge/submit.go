@@ -17,12 +17,14 @@ import (
 type submitCmd struct {
 	language string
 	taskName string
+	username string
+	password string
 }
 
 func (*submitCmd) Name() string     { return "submit" }
 func (*submitCmd) Synopsis() string { return "Submits solution to the server." }
 func (*submitCmd) Usage() string {
-	return `submit -languge <language> -task <taskName>:
+	return `submit -languge <language> -task <taskName> -username <username> -password <password>:
   Submits solution to the server.
 `
 }
@@ -30,6 +32,8 @@ func (*submitCmd) Usage() string {
 func (s *submitCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&s.language, "language", "", "The language of the submission")
 	f.StringVar(&s.taskName, "task", "", "The task of the submission")
+	f.StringVar(&s.username, "username", "", "Your username")
+	f.StringVar(&s.password, "password", "", "Your password")
 }
 
 func (s *submitCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
@@ -41,12 +45,21 @@ func (s *submitCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 		log.Println("Task must be specified")
 		return subcommands.ExitUsageError
 	}
+	if s.username == "" {
+		log.Println("Username must be specified")
+		return subcommands.ExitUsageError
+	}
+	if s.password == "" {
+		log.Println("Password must be specified")
+		return subcommands.ExitUsageError
+	}
 	if *serverAddress == "" {
 		log.Fatal("Server Address must be specified")
 	}
+
 	switch s.language {
 	case "go":
-		if err := s.goSubmission(); err != nil {
+		if err := s.submit(s.goSubmission); err != nil {
 			log.Println(err)
 			return subcommands.ExitFailure
 		}
@@ -59,34 +72,32 @@ func (s *submitCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}
 	return subcommands.ExitSuccess
 }
 
-func (s *submitCmd) goSubmission() error {
+func (s *submitCmd) submit(executor func() (godge.Executor, error)) error {
 
-	// Zip the current dir
-	currentDir, err := os.Getwd()
+	exec, err := executor()
 	if err != nil {
-		return fmt.Errorf("failed to get working dir: %v", err)
+		return fmt.Errorf("failed to create executor: %v", err)
 	}
-	log.Printf("Will submit %v", currentDir)
-	b, err := zipCurrentDir()
-	if err != nil {
-		return fmt.Errorf("failed to zip current dir: %v", err)
-	}
-	log.Printf("Done zipping %v", currentDir)
 
-	req := godge.Submission{
-		Language: "go",
+	sub := &godge.Submission{
+		Language: s.language,
 		TaskName: s.taskName,
-		Executor: &godge.GoExecutor{
-			PackageArchive: b,
-		},
+		Username: s.username,
+		Executor: exec,
 	}
 
-	reqj, err := json.Marshal(&req)
+	reqj, err := json.Marshal(&sub)
 	if err != nil {
 		return fmt.Errorf("failed to marshal request json: %v", err)
 	}
 
-	resp, err := http.Post(fmt.Sprintf("%v/submit", *serverAddress), "application/json", bytes.NewReader(reqj))
+	req, err := http.NewRequest("POST", fmt.Sprintf("%v/submit", *serverAddress), bytes.NewReader(reqj))
+	if err != nil {
+		return fmt.Errorf("failed to marshal request json: %v", err)
+	}
+	req.SetBasicAuth(s.username, s.password)
+
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("failed to submit request: %v", err)
 	}
@@ -96,4 +107,23 @@ func (s *submitCmd) goSubmission() error {
 	defer resp.Body.Close()
 
 	return nil
+}
+
+func (s *submitCmd) goSubmission() (godge.Executor, error) {
+
+	// Zip the current dir
+	currentDir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get working dir: %v", err)
+	}
+	log.Printf("Will submit %v", currentDir)
+	b, err := zipCurrentDir()
+	if err != nil {
+		return nil, fmt.Errorf("failed to zip current dir: %v", err)
+	}
+	log.Printf("Done zipping %v", currentDir)
+
+	return &godge.GoExecutor{
+		PackageArchive: b,
+	}, nil
 }

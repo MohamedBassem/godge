@@ -8,6 +8,7 @@ import (
 type Submission struct {
 	Language string   `json:"language"`
 	TaskName string   `json:"taskName"`
+	Username string   `json:"username"`
 	Executor Executor `json:"submission"`
 }
 

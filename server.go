@@ -68,9 +68,10 @@ func (s *Server) submitHTTPHandler(w http.ResponseWriter, req *http.Request) {
 		httpJsonError(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
 		return
 	}
-
-	// TODO(mbassem): Authenticate the request
-
+	if username, password, ok := req.BasicAuth(); !ok || s.users[username] != password {
+		httpJsonError(w, "Wrong username or password", http.StatusUnauthorized)
+		return
+	}
 	var sreq Submission
 	err := json.NewDecoder(req.Body).Decode(&sreq)
 	if err != nil {
@@ -98,6 +99,11 @@ func (s *Server) registerHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	err := json.NewDecoder(req.Body).Decode(&rreq)
 	if err != nil {
 		httpJsonError(w, fmt.Sprintf("Failed to decode request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if len(rreq.Username) == 0 {
+		httpJsonError(w, fmt.Sprintf("Username cannot be empty"), http.StatusBadRequest)
 		return
 	}
 
