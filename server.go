@@ -9,12 +9,15 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 )
 
+type users map[string]string
+
 type Server struct {
 	address            string
 	tasks              map[string]Task
 	pendingSubmissions chan *Submission
 	requestErrorChan   chan error
 	dockerClient       *docker.Client
+	users              users
 }
 
 func NewServer(address string, dockerAddress string) (*Server, error) {
@@ -67,8 +70,6 @@ func (s *Server) submitHTTPHandler(w http.ResponseWriter, req *http.Request) {
 
 	// TODO(mbassem): Authenticate the request
 
-	defer req.Body.Close()
-
 	var sreq Submission
 	err := json.NewDecoder(req.Body).Decode(&sreq)
 	if err != nil {
@@ -81,9 +82,38 @@ func (s *Server) submitHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+type RegisterRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+func (s *Server) registerHTTPHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		httpJsonError(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var rreq RegisterRequest
+	err := json.NewDecoder(req.Body).Decode(&rreq)
+	if err != nil {
+		httpJsonError(w, fmt.Sprintf("Failed to decode request body: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	if _, ok := s.users[rreq.Username]; ok {
+		httpJsonError(w, fmt.Sprintf("Username %v is already registered", rreq.Username), http.StatusBadRequest)
+		return
+	}
+
+	s.users[rreq.Username] = rreq.Password
+
+	w.WriteHeader(http.StatusCreated)
+}
+
 func (s *Server) Start() error {
 	go s.processSubmissions()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/submit", s.submitHTTPHandler)
+	mux.HandleFunc("/register", s.registerHTTPHandler)
 	return http.ListenAndServe(s.address, mux)
 }
