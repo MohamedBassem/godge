@@ -3,10 +3,12 @@ package godge
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"os"
 	"path/filepath"
 	"time"
@@ -81,4 +83,15 @@ func unzipToTmpDir(b []byte) (string, error) {
 		}
 	}
 	return tdir, nil
+}
+
+func httpJsonError(w http.ResponseWriter, msg string, code int) {
+	e := struct {
+		Error string `json:"error"`
+	}{
+		Error: msg,
+	}
+
+	b, _ := json.Marshal(e)
+	http.Error(w, string(b), code)
 }

@@ -1,6 +1,7 @@
 package godge
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -27,7 +28,7 @@ func NewServer(address string, dockerAddress string) (*Server, error) {
 	return &Server{
 		address:            address,
 		tasks:              make(map[string]Task),
-		pendingSubmissions: make(chan *Submission),
+		pendingSubmissions: make(chan *Submission, 20),
 		dockerClient:       dc,
 	}, nil
 }
@@ -54,14 +55,35 @@ func (s *Server) reportResult(sub *Submission, err error) {
 
 func (s *Server) processSubmissions() {
 	for sub := range s.pendingSubmissions {
-		sub.Executor.setDockerClient(s.dockerClient)
 		s.reportResult(sub, s.handleSubmission(sub))
 	}
+}
+
+func (s *Server) submitHTTPHandler(w http.ResponseWriter, req *http.Request) {
+	if req.Method != http.MethodPost {
+		httpJsonError(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// TODO(mbassem): Authenticate the request
+
+	defer req.Body.Close()
+
+	var sreq Submission
+	err := json.NewDecoder(req.Body).Decode(&sreq)
+	if err != nil {
+		httpJsonError(w, fmt.Sprintf("Failed to decode request body: %v", err), http.StatusBadRequest)
+		return
+	}
+	sreq.Executor.setDockerClient(s.dockerClient)
+
+	s.pendingSubmissions <- &sreq
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) Start() error {
 	go s.processSubmissions()
 	mux := http.NewServeMux()
-	mux.HandleFunc("/submit", submitHandler(s.pendingSubmissions))
+	mux.HandleFunc("/submit", s.submitHTTPHandler)
 	return http.ListenAndServe(s.address, mux)
 }
