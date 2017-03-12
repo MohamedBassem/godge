@@ -11,6 +11,7 @@ import (
 // Executor is used to interact with the submission.
 type Executor interface {
 	setDockerClient(*docker.Client)
+	containerID() string
 	// Excutes the submitted code with the provided arguments.
 	Execute(args []string) error
 	// Reads a certain file from the container's workspace.
@@ -28,6 +29,13 @@ type baseExecutor struct {
 	container    *docker.Container
 	workDir      string
 	stoppedOnce  sync.Once
+}
+
+func (b *baseExecutor) containerID() string {
+	if b.container == nil {
+		return ""
+	}
+	return b.container.ID
 }
 
 func (b *baseExecutor) setDockerClient(d *docker.Client) {

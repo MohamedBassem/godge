@@ -1,26 +1,36 @@
 package godge
 
-import "sort"
+import (
+	"sort"
+	"sync"
+)
 
 const (
 	failedVerdict = "Failed"
 	passedVerdict = "Passed"
 )
 
-type scoreboard map[string]map[string]string
+type scoreboard struct {
+	sync.RWMutex
+	m map[string]map[string]string
+}
 
 func (r scoreboard) set(user, task string, verdict string) {
-	if _, ok := r[user]; !ok {
-		r[user] = make(map[string]string)
+	r.Lock()
+	defer r.Unlock()
+	if _, ok := r.m[user]; !ok {
+		r.m[user] = make(map[string]string)
 	}
-	r[user][task] = verdict
+	r.m[user][task] = verdict
 }
 
 func (r scoreboard) get(user, task string) string {
-	if _, ok := r[user]; !ok {
+	r.RLock()
+	defer r.RUnlock()
+	if _, ok := r.m[user]; !ok {
 		return ""
 	}
-	return r[user][task]
+	return r.m[user][task]
 }
 
 // returns a 2D array of the results (including the tasks as the first row and

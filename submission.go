@@ -7,6 +7,7 @@ import (
 
 // Submission is the input of the user defined task tests.
 type Submission struct {
+	id string
 	// The language of the submission.
 	Language string `json:"language"`
 	// The task this submission is sent to.
@@ -32,6 +33,7 @@ func (s *Submission) UnmarshalJSON(d []byte) error {
 		return fmt.Errorf("failed to unmarshal metadata: %v", err)
 	}
 
+	s.id = randomString(20)
 	s.Language = metadata.Language
 	s.TaskName = metadata.TaskName
 	s.Username = metadata.Username

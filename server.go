@@ -6,21 +6,101 @@ import (
 	"log"
 	"net/http"
 	"sort"
+	"sync"
 
 	docker "github.com/fsouza/go-dockerclient"
 )
 
-type users map[string]string
+type users struct {
+	sync.RWMutex
+	m map[string]string
+}
+
+func (u *users) get(username string) (string, bool) {
+	u.RLock()
+	defer u.RUnlock()
+	ret, ok := u.m[username]
+	return ret, ok
+}
+
+func (u *users) set(username, password string) {
+	u.Lock()
+	defer u.Unlock()
+	u.m[username] = password
+}
+
+func (u *users) usernames() []string {
+	u.RLock()
+	defer u.RUnlock()
+	var ret []string
+	for k := range u.m {
+		ret = append(ret, k)
+	}
+	return ret
+}
+
+type runningSubmissions struct {
+	sync.RWMutex
+	m map[string]*Submission
+}
+
+func (r *runningSubmissions) get(id string) (*Submission, bool) {
+	r.RLock()
+	defer r.RUnlock()
+	ret, ok := r.m[id]
+	return ret, ok
+}
+
+func (r *runningSubmissions) set(id string, sub *Submission) {
+	r.Lock()
+	defer r.Unlock()
+	r.m[id] = sub
+}
+
+func (r *runningSubmissions) del(id string) {
+	r.Lock()
+	defer r.Unlock()
+	delete(r.m, id)
+}
+
+type tasks struct {
+	sync.RWMutex
+	m map[string]Task
+}
+
+func (t *tasks) get(name string) (Task, bool) {
+	t.RLock()
+	defer t.RUnlock()
+	ret, ok := t.m[name]
+	return ret, ok
+}
+
+func (t *tasks) set(name string, task Task) {
+	t.Lock()
+	defer t.Unlock()
+	t.m[name] = task
+}
+
+func (t *tasks) names() []string {
+	t.RLock()
+	defer t.RUnlock()
+	var ret []string
+	for k := range t.m {
+		ret = append(ret, k)
+	}
+	return ret
+}
 
 // Server holds all the information related to a single instance of the judge. It's used to register Tasks and start the HTTP server.
 type Server struct {
 	address            string
-	tasks              map[string]Task
+	tasks              tasks
 	pendingSubmissions chan submissionRequest
 	requestErrorChan   chan error
 	dockerClient       *docker.Client
 	users              users
 	scoreboard         scoreboard
+	runningSubmissions runningSubmissions
 }
 
 // NewServer creates a new instance of the judge. It takes the address that the
@@ -35,27 +115,38 @@ func NewServer(address string, dockerAddress string) (*Server, error) {
 		return nil, fmt.Errorf("failed to connect to docker daemon: %v", err)
 	}
 	return &Server{
-		address:            address,
-		tasks:              make(map[string]Task),
+		address: address,
+		tasks: tasks{
+			m: make(map[string]Task),
+		},
 		pendingSubmissions: make(chan submissionRequest),
 		dockerClient:       dc,
-		users:              make(users),
-		scoreboard:         make(scoreboard),
+		users: users{
+			m: make(map[string]string),
+		},
+		scoreboard: scoreboard{
+			m: make(map[string]map[string]string),
+		},
+		runningSubmissions: runningSubmissions{
+			m: make(map[string]*Submission),
+		},
 	}, nil
 }
 
 // RegisterTask registers a new task in the server.
 func (s *Server) RegisterTask(t Task) {
-	s.tasks[t.Name] = t
+	s.tasks.set(t.Name, t)
 }
 
 // handleSubmission is used to handle a received submission by executing the tests of the
 // submission's task against this submission.
 func (s *Server) handleSubmission(sub *Submission) error {
-	t, ok := s.tasks[sub.TaskName]
+	t, ok := s.tasks.get(sub.TaskName)
 	if !ok {
 		return fmt.Errorf("task %v not found", sub.TaskName)
 	}
+	s.runningSubmissions.set(sub.id, sub)
+	defer s.runningSubmissions.del(sub.id)
 	if err := t.execute(sub); err != nil {
 		return fmt.Errorf("task %v failed: %v", sub.TaskName, err)
 	}
@@ -103,7 +194,12 @@ func (s *Server) submitHTTPHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 	// Authenticate the user
-	if username, password, ok := req.BasicAuth(); !ok || s.users[username] != password {
+	username, password, ok := req.BasicAuth()
+	if !ok {
+		httpJSONError(w, "Wrong username or password", http.StatusUnauthorized)
+		return
+	}
+	if u, _ := s.users.get(username); u != password {
 		httpJSONError(w, "Wrong username or password", http.StatusUnauthorized)
 		return
 	}
@@ -173,12 +269,12 @@ func (s *Server) registerHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Make sure that the username is unique.
-	if _, ok := s.users[rreq.Username]; ok {
+	if _, ok := s.users.get(rreq.Username); ok {
 		httpJSONError(w, fmt.Sprintf("Username %v is already registered", rreq.Username), http.StatusBadRequest)
 		return
 	}
 
-	s.users[rreq.Username] = rreq.Password
+	s.users.set(rreq.Username, rreq.Password)
 	log.Printf("User %v registered", rreq.Username)
 
 	w.WriteHeader(http.StatusCreated)
@@ -191,11 +287,7 @@ func (s *Server) tasksHTTPHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	var ts []Task
-
-	for _, t := range s.tasks {
-		ts = append(ts, t)
-	}
+	ts := s.tasks.names()
 
 	w.WriteHeader(http.StatusOK)
 
@@ -214,16 +306,10 @@ func (s *Server) scoreboardHTTPHandler(w http.ResponseWriter, req *http.Request)
 
 	w.Header().Add("Content-Type", "text/html")
 
-	var ts []string
-	for k := range s.tasks {
-		ts = append(ts, k)
-	}
+	ts := s.tasks.names()
 	sort.Strings(ts)
 
-	var us []string
-	for k := range s.users {
-		us = append(us, k)
-	}
+	us := s.users.usernames()
 	sort.Strings(us)
 
 	scoreboard := s.scoreboard.toScoreboard(us, ts)
