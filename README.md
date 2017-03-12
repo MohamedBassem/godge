@@ -1,12 +1,16 @@
 # Godge
 
-Godge is an self-hosted online judge for meetups and workshops. It adds a competitive environment to the workshop/meetup.
+Godge is a self-hosted online judge for meetups and workshops. It adds a competitive environment to the workshop/meetup.
+
+## Why I built Godge?
+
+Read the blog post : [http://blog.mbassem.com/2017/03/12/godge/](http://blog.mbassem.com/2017/03/12/godge/).
 
 ## What's the difference between godge and other online judges?
 
 1- The obvious difference is that godge is self hosted. It's not intended to be running for public internet audience. It targets meetup/workshop attendees.
 
-2- With godge you can test every submission the way you want. Other online judges like (spoj and codeforces) only test that the user's submission printed the correct output. When you are teaching Go for instance, you want to test that attendees can create command line flags, that they can start a webserver and respond 200 to your requests, etc. Godge allows you do so.
+2- With Godge you can test every submission the way you want. Other online judges like (spoj and codeforces) only test that the user's submission printed the correct output. When you are teaching Go for instance, you want to test that attendees can create command line flags, that they can start a webserver and respond 200 to your requests, etc. Godge allows you do so.
 
 3- Other online judges only allow you to submit a single file. Godge allows you test the project as a whole, with its subpackages, config files, assets, etc.
 
@@ -14,9 +18,9 @@ Godge is an self-hosted online judge for meetups and workshops. It adds a compet
 
 ### As a meetup/workshop Host
 
-1- Install docker.
+1- Install docker (> 1.22).
 
-2- Implement the tasks that you want your attendees to solve using the godge package. An example for two tasks that tests that attendees can print output to stdout and that they can use flags correctly.
+2- Implement the tasks that you want your attendees to solve using the Godge package. An example for two tasks that tests that attendees can print output to stdout and that they can use flags correctly.
 
 ```go
 package main
@@ -96,7 +100,7 @@ func main() {
 
 ### As an Attendee
 
-1- Download the godge command line client.
+1- Download the Godge command line client.
 
 ```
 $ go get -u github.com/MohamedBassem/godge/cmd/godge
