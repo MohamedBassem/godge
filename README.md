@@ -13,6 +13,7 @@ Godge is an self-hosted online judge for meetups and workshops. It adds a compet
 ### As a meetup/workshop Hosts
 
 1- Install docker.
+
 2- Implement the tasks that you want your attendees to solve using the godge package. An example for two tasks that tests that attendees can print output to stdout and that they can use flags correctly.
 
 ```go
@@ -92,3 +93,67 @@ func main() {
 3- Share with your attendees the address of the server. You can host it on the local network or on a public server.
 
 ### As an Attendee
+
+1- Download the godge command line client.
+
+```
+$ go get -u github.com/MohamedBassem/godge/cmd/godge
+```
+
+2- Register a new account on the server.
+
+```
+$ godge --address <addr> register --username <username> --password <password>
+```
+
+3- List the available tasks.
+
+```
+$ godge --address <addr> tasks
+HelloWorld: Your program should print 'Hello World!' to stdout.
+=============================
+Flags: The binary should accept the '--name' flag and prints 'Hello $name!' to stdout.
+=============================
+```
+
+4- Work on one of the tasks and then submit it.
+
+```
+$ godge --address <addr> submit --task <task> --language <lang> --username <username> --password <password>
+2017/03/12 19:04:58 Will submit /private/tmp/tmp
+2017/03/12 19:04:58 Done zipping /private/tmp/tmp
+2017/03/12 19:05:00 You submission passed!
+```
+
+5- Check the scoreboard at `http://<addr>/scoreboard`.
+
+## A Live Demo
+
+
+## How It Works
+
+Submissions run in a separate container. The container is determined based on the language. Godge offers
+an abstract API to interact with the container (start, stop, fetch stdout, ..).
+
+## Go
+
+The command line client, zips the whole "main" package (and its subpackages) and sends it to the server. The server
+then uses the image `golang:1.8` to build and run the package.
+
+
+The command line 
+
+## Known Issues / Future Work
+
+1- Currently `Go` is the only supported language.
+
+2- All the data (scoreboard, tasks and users) are stored in the server's memory. All the
+data will be lost if the server is restarted. Although it's not a problem for meetups or
+workshop as they are short by nature, it would be nice to persist this info in a `sqlite`
+database for example.
+
+3- The `Execute` function should allow opening ports in the container to be able to test
+web servers for example.
+
+4- Currently a single goroutine executes the submissions sequentially. It would be nice
+to run multiple submissions in parallel. [Easy Fix]
