@@ -12,7 +12,7 @@ Godge is an self-hosted online judge for meetups and workshops. It adds a compet
 
 ## How to use it?
 
-### As a meetup/workshop Hosts
+### As a meetup/workshop Host
 
 1- Install docker.
 
@@ -131,6 +131,7 @@ $ godge --address <addr> submit --task <task> --language <lang> --username <user
 
 ## A Live Demo
 
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=S0OLOiujxJk" target="_blank"><img src="http://img.youtube.com/vi/S0OLOiujxJk/0.jpg" alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
 
 ## How It Works
 
