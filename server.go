@@ -91,6 +91,16 @@ func (t *tasks) names() []string {
 	return ret
 }
 
+func (t *tasks) tasks() []Task {
+	t.RLock()
+	defer t.RUnlock()
+	var ret []Task
+	for _, v := range t.m {
+		ret = append(ret, v)
+	}
+	return ret
+}
+
 // Server holds all the information related to a single instance of the judge. It's used to register Tasks and start the HTTP server.
 type Server struct {
 	address            string
@@ -287,7 +297,7 @@ func (s *Server) tasksHTTPHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	ts := s.tasks.names()
+	ts := s.tasks.tasks()
 
 	w.WriteHeader(http.StatusOK)
 
