@@ -34,6 +34,11 @@ var scoreboardTmpl = template.Must(template.New("scoreboard").Parse(`
 			</tbody>
 		</table>
 	</body>
+	<script>
+		setTimeout(function(){
+			window.location.reload(1);
+		}, 2000);
+	</script>
 </html>
 
 `))
