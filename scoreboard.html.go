@@ -21,21 +21,12 @@ var scoreboardTmpl = template.Must(template.New("scoreboard").Parse(`
 	<body>
 		<h1>Scoreboard!</h1>
 		<table>
-			<thead>
-				<tr>
-					<td> Users </td>
-					{{ range .Tasks }}
-						<td> {{.}} </td>
-					{{ end }}
-				</tr>
-			</thead>
 			<tbody>
-				{{ range $i1, $user :=  $.Users }}
+				{{ range $i1, $row1 :=  $.Scoreboard }}
 					<tr>
-						<td> {{ $user }} </td>
-						{{ range $i2, $task := $.Tasks }}
+						{{ range $i2, $row2 := $row1 }}
 							<td>
-								{{ call $.Results $user $task }}
+								{{ index $.Scoreboard $i1 $i2 }}
 							</td>
 						{{ end }}
 					</tr>

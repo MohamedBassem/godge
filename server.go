@@ -10,22 +10,6 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 )
 
-type results map[string]map[string]string
-
-func (r results) set(user, task string, val string) {
-	if _, ok := r[user]; !ok {
-		r[user] = make(map[string]string)
-	}
-	r[user][task] = val
-}
-
-func (r results) get(user, task string) string {
-	if _, ok := r[user]; !ok {
-		return ""
-	}
-	return r[user][task]
-}
-
 type users map[string]string
 
 type Server struct {
@@ -35,7 +19,7 @@ type Server struct {
 	requestErrorChan   chan error
 	dockerClient       *docker.Client
 	users              users
-	results            results
+	scoreboard         scoreboard
 }
 
 func NewServer(address string, dockerAddress string) (*Server, error) {
@@ -52,7 +36,7 @@ func NewServer(address string, dockerAddress string) (*Server, error) {
 		pendingSubmissions: make(chan submissionRequest),
 		dockerClient:       dc,
 		users:              make(users),
-		results:            make(results),
+		scoreboard:         make(scoreboard),
 	}, nil
 }
 
@@ -79,10 +63,10 @@ type submissionRequest struct {
 func (s *Server) reportResult(sub *Submission, err error) {
 	log.Printf("%v submission for %v: %v", sub.Language, sub.TaskName, err)
 	if err != nil {
-		s.results.set(sub.Username, sub.TaskName, "Failed")
+		s.scoreboard.set(sub.Username, sub.TaskName, failedVerdict)
 		return
 	}
-	s.results.set(sub.Username, sub.TaskName, "Succeeded")
+	s.scoreboard.set(sub.Username, sub.TaskName, passedVerdict)
 }
 
 func (s *Server) processSubmissions() {
@@ -216,10 +200,10 @@ func (s *Server) scoreboardHTTPHandler(w http.ResponseWriter, req *http.Request)
 	}
 	sort.Strings(us)
 
+	scoreboard := s.scoreboard.toScoreboard(us, ts)
+
 	scoreboardTmpl.Execute(w, map[string]interface{}{
-		"Results": s.results.get,
-		"Users":   us,
-		"Tasks":   ts,
+		"Scoreboard": scoreboard,
 	})
 }
 
