@@ -7,11 +7,16 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 )
 
+// GoExecutor implements the Executor interface. It's used in the submit request
+// when the language is Go. You won't deal with the GoExecutor directly, it's only
+// exposed to be used by the command line client.
 type GoExecutor struct {
 	baseExecutor
+	// A zip archive containing the "main" package to be executed.
 	PackageArchive []byte `json:"packageArchive"`
 }
 
+// Execute executes the Go main package submitted with the given arguments.
 func (g *GoExecutor) Execute(args []string) error {
 	if g.dockerClient == nil {
 		// Panic if there's a logic error

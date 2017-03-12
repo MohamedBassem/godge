@@ -8,12 +8,18 @@ import (
 	docker "github.com/fsouza/go-dockerclient"
 )
 
+// Executor is used to interact with the submission.
 type Executor interface {
 	setDockerClient(*docker.Client)
+	// Excutes the submitted code with the provided arguments.
 	Execute(args []string) error
+	// Reads a certain file from the container's workspace.
 	ReadFileFromContainer(path string) (string, error)
+	// Returns the contents of the stdout of the container.
 	Stdout() (string, error)
+	// Returns the contents for the stderr of the container.
 	Stderr() (string, error)
+	// Stops the running binary.
 	Stop() error
 }
 
@@ -28,6 +34,8 @@ func (b *baseExecutor) setDockerClient(d *docker.Client) {
 	b.dockerClient = d
 }
 
+// ReadFileFromContainer reads a certain file from the container's workspace. The path
+// is relative to the container's workdir.
 func (b *baseExecutor) ReadFileFromContainer(path string) (string, error) {
 	buf := new(bytes.Buffer)
 	option := docker.DownloadFromContainerOptions{
@@ -40,6 +48,7 @@ func (b *baseExecutor) ReadFileFromContainer(path string) (string, error) {
 	return string(buf.Bytes()), nil
 }
 
+// Stdout returns the content of the stdout of the container.
 func (b *baseExecutor) Stdout() (string, error) {
 	buf := new(bytes.Buffer)
 	option := docker.LogsOptions{
@@ -54,6 +63,7 @@ func (b *baseExecutor) Stdout() (string, error) {
 	return string(buf.Bytes()), nil
 }
 
+// Stderr returns the content of the stderr of the container.
 func (b *baseExecutor) Stderr() (string, error) {
 	buf := new(bytes.Buffer)
 	option := docker.LogsOptions{
@@ -68,6 +78,7 @@ func (b *baseExecutor) Stderr() (string, error) {
 	return string(buf.Bytes()), nil
 }
 
+// Stop stops the running binary.
 func (b *baseExecutor) Stop() error {
 	var err error
 	b.stoppedOnce.Do(func() {

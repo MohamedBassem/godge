@@ -12,6 +12,7 @@ import (
 
 type users map[string]string
 
+// Server holds all the information related to a single instance of the judge. It's used to register Tasks and start the HTTP server.
 type Server struct {
 	address            string
 	tasks              map[string]Task
@@ -22,6 +23,9 @@ type Server struct {
 	scoreboard         scoreboard
 }
 
+// NewServer creates a new instance of the judge. It takes the address that the
+// judge will listen to and the address of the address daemon (e.g. unix:///var/run/docker.sock).
+// NewServer returns an error if it fails to connect to the docker daemon.
 func NewServer(address string, dockerAddress string) (*Server, error) {
 	dc, err := docker.NewClient(dockerAddress)
 	if err != nil {
@@ -40,26 +44,32 @@ func NewServer(address string, dockerAddress string) (*Server, error) {
 	}, nil
 }
 
+// RegisterTask registers a new task in the server.
 func (s *Server) RegisterTask(t Task) {
 	s.tasks[t.Name] = t
 }
 
+// handleSubmission is used to handle a received submission by executing the tests of the
+// submission's task against this submission.
 func (s *Server) handleSubmission(sub *Submission) error {
 	t, ok := s.tasks[sub.TaskName]
 	if !ok {
 		return fmt.Errorf("task %v not found", sub.TaskName)
 	}
-	if err := t.Execute(sub); err != nil {
+	if err := t.execute(sub); err != nil {
 		return fmt.Errorf("task %v failed: %v", sub.TaskName, err)
 	}
 	return nil
 }
 
+// A wrapper around the submission that's used for communication between
+// the http handler and the server.
 type submissionRequest struct {
 	result     chan error
 	submission *Submission
 }
 
+// Updates the scoreboard.
 func (s *Server) reportResult(sub *Submission, err error) {
 	log.Printf("%v submission for %v: %v", sub.Language, sub.TaskName, err)
 	if err != nil {
@@ -69,6 +79,8 @@ func (s *Server) reportResult(sub *Submission, err error) {
 	s.scoreboard.set(sub.Username, sub.TaskName, passedVerdict)
 }
 
+// Executes the tests and report the result back to the http handler and the
+// scoreboard.
 func (s *Server) processSubmissions() {
 	for sreq := range s.pendingSubmissions {
 		err := s.handleSubmission(sreq.submission)
@@ -77,20 +89,25 @@ func (s *Server) processSubmissions() {
 	}
 }
 
+// SubmissionResponse is the response returned back by the server in response
+// to the submission request. It's exposed to be used by the command line client.
 type SubmissionResponse struct {
 	Passed bool   `json:"passed"`
 	Error  string `json:"error"`
 }
 
+// The handler that handles submission requests.
 func (s *Server) submitHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		httpJSONError(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
 		return
 	}
+	// Authenticate the user
 	if username, password, ok := req.BasicAuth(); !ok || s.users[username] != password {
 		httpJSONError(w, "Wrong username or password", http.StatusUnauthorized)
 		return
 	}
+
 	var sub Submission
 	err := json.NewDecoder(req.Body).Decode(&sub)
 	if err != nil {
@@ -99,13 +116,14 @@ func (s *Server) submitHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	}
 	sub.Executor.setDockerClient(s.dockerClient)
 
+	// Send the submission for the server to run the tests.
 	res := make(chan error)
 	s.pendingSubmissions <- submissionRequest{
 		result:     res,
 		submission: &sub,
 	}
 
-	w.WriteHeader(http.StatusOK)
+	// Wait for the submission results and prepare the response.
 	result := <-res
 
 	resp := SubmissionResponse{
@@ -120,17 +138,21 @@ func (s *Server) submitHTTPHandler(w http.ResponseWriter, req *http.Request) {
 		}
 	}
 
+	w.WriteHeader(http.StatusOK)
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		httpJSONError(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
 }
 
+// RegisterRequest represents the registeration request. It's exposed to be used by the
+// command line client.
 type RegisterRequest struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 }
 
+// Handles registration requests.
 func (s *Server) registerHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
 		httpJSONError(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
@@ -144,11 +166,13 @@ func (s *Server) registerHTTPHandler(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	// Make sure that the username is not empty.
 	if len(rreq.Username) == 0 {
 		httpJSONError(w, fmt.Sprintf("Username cannot be empty"), http.StatusBadRequest)
 		return
 	}
 
+	// Make sure that the username is unique.
 	if _, ok := s.users[rreq.Username]; ok {
 		httpJSONError(w, fmt.Sprintf("Username %v is already registered", rreq.Username), http.StatusBadRequest)
 		return
@@ -160,6 +184,7 @@ func (s *Server) registerHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
+// Handles tasks queries.
 func (s *Server) tasksHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		httpJSONError(w, "Only GET requests are allowed", http.StatusMethodNotAllowed)
@@ -180,6 +205,7 @@ func (s *Server) tasksHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// Handles scoreboard requests.
 func (s *Server) scoreboardHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
 		httpJSONError(w, "Only GET requests are allowed", http.StatusMethodNotAllowed)
@@ -207,6 +233,8 @@ func (s *Server) scoreboardHTTPHandler(w http.ResponseWriter, req *http.Request)
 	})
 }
 
+// Start starts the http server and the goroutine responsible for processing
+// the submissions.
 func (s *Server) Start() error {
 	go s.processSubmissions()
 	mux := http.NewServeMux()

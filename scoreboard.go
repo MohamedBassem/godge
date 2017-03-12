@@ -23,6 +23,9 @@ func (r scoreboard) get(user, task string) string {
 	return r[user][task]
 }
 
+// returns a 2D array of the results (including the tasks as the first row and
+// the users as the first column). The results are rows are sorted by the score
+// of each user.
 func (r scoreboard) toScoreboard(allUsers, allTasks []string) [][]string {
 
 	var ret [][]string

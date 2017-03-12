@@ -85,6 +85,8 @@ func unzipToTmpDir(b []byte) (string, error) {
 	return tdir, nil
 }
 
+// ErrorResponse represents an error that's returned in the http request in case of
+// a non success code. It's exposed to be used by the command line client.
 type ErrorResponse struct {
 	Error string `json:"error"`
 }
