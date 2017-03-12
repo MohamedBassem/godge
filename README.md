@@ -5,7 +5,9 @@ Godge is an self-hosted online judge for meetups and workshops. It adds a compet
 ## What's the difference between godge and other online judges?
 
 1- The obvious difference is that godge is self hosted. It's not intended to be running for public internet audience. It targets meetup/workshop attendees.
+
 2- With godge you can test every submission the way you want. Other online judges like (spoj and codeforces) only test that the user's submission printed the correct output. When you are teaching Go for instance, you want to test that attendees can create command line flags, that they can start a webserver and respond 200 to your requests, etc. Godge allows you do so.
+
 3- Other online judges only allow you to submit a single file. Godge allows you test the project as a whole, with its subpackages, config files, assets, etc.
 
 ## How to use it?
@@ -135,13 +137,10 @@ $ godge --address <addr> submit --task <task> --language <lang> --username <user
 Submissions run in a separate container. The container is determined based on the language. Godge offers
 an abstract API to interact with the container (start, stop, fetch stdout, ..).
 
-## Go
+### Go
 
 The command line client, zips the whole "main" package (and its subpackages) and sends it to the server. The server
 then uses the image `golang:1.8` to build and run the package.
-
-
-The command line 
 
 ## Known Issues / Future Work
 
@@ -157,3 +156,11 @@ web servers for example.
 
 4- Currently a single goroutine executes the submissions sequentially. It would be nice
 to run multiple submissions in parallel. [Easy Fix]
+
+##Contribution
+Your contributions and ideas are welcomed through issues and pull requests.
+
+##License
+Copyright (c) 2017, Mohamed Bassem. (MIT License)
+
+See LICENSE for more info.
