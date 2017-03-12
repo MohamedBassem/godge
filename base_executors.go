@@ -22,6 +22,10 @@ type Executor interface {
 	Stderr() (string, error)
 	// Stops the running binary.
 	Stop() error
+	// A channels that gets signaled when the container starts.
+	StartEvent() chan struct{}
+	// A channels that gets signaled when the container dies.
+	DieEvent() chan struct{}
 }
 
 type baseExecutor struct {
@@ -29,6 +33,26 @@ type baseExecutor struct {
 	container    *docker.Container
 	workDir      string
 	stoppedOnce  sync.Once
+	startEvent   chan struct{}
+	dieEvent     chan struct{}
+}
+
+// init must be called as the first statement for any executor.
+func (b *baseExecutor) init() {
+	b.container = nil
+	b.startEvent = make(chan struct{}, 10)
+	b.dieEvent = make(chan struct{}, 10)
+	b.stoppedOnce = sync.Once{}
+}
+
+// StartEvent returns a channel that gets signaled when the container starts.
+func (b *baseExecutor) StartEvent() chan struct{} {
+	return b.startEvent
+}
+
+// DieEvent returns a channel that gets signaled when the container dies.
+func (b *baseExecutor) DieEvent() chan struct{} {
+	return b.dieEvent
 }
 
 func (b *baseExecutor) containerID() string {

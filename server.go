@@ -319,10 +319,42 @@ func (s *Server) scoreboardHTTPHandler(w http.ResponseWriter, req *http.Request)
 	})
 }
 
+func (s *Server) proccessDockerEvents() {
+	listener := make(chan *docker.APIEvents)
+	if err := s.dockerClient.AddEventListener(listener); err != nil {
+		log.Fatal(err)
+	}
+	for e := range listener {
+		if e.Type != "container" || (e.Action != "start" && e.Action != "die") {
+			continue
+		}
+
+		s.runningSubmissions.RLock()
+		for _, s := range s.runningSubmissions.m {
+			if s.Executor.containerID() == e.Actor.ID {
+				switch e.Action {
+				case "start":
+					select {
+					case s.Executor.StartEvent() <- struct{}{}:
+					default:
+					}
+				case "die":
+					select {
+					case s.Executor.DieEvent() <- struct{}{}:
+					default:
+					}
+				}
+			}
+		}
+		s.runningSubmissions.RUnlock()
+	}
+}
+
 // Start starts the http server and the goroutine responsible for processing
 // the submissions.
 func (s *Server) Start() error {
 	go s.processSubmissions()
+	go s.proccessDockerEvents()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/submit", s.submitHTTPHandler)
 	mux.HandleFunc("/register", s.registerHTTPHandler)

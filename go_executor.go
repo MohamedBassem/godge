@@ -18,6 +18,7 @@ type GoExecutor struct {
 
 // Execute executes the Go main package submitted with the given arguments.
 func (g *GoExecutor) Execute(args []string) error {
+	g.init()
 	if g.dockerClient == nil {
 		// Panic if there's a logic error
 		panic("Docker client must be set for go executor")
