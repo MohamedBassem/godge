@@ -131,7 +131,7 @@ $ godge --address <addr> submit --task <task> --language <lang> --username <user
 
 ## A Live Demo
 
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=S0OLOiujxJk" target="_blank"><img src="http://img.youtube.com/vi/S0OLOiujxJk/0.jpg" alt="IMAGE ALT TEXT HERE" width="240" height="180" border="10" /></a>
+<a href="http://www.youtube.com/watch?feature=player_embedded&v=S0OLOiujxJk" target="_blank"><img src="http://img.youtube.com/vi/S0OLOiujxJk/0.jpg" alt="IMAGE ALT TEXT HERE" width="560" height="315" border="10" /></a>
 
 ## How It Works
 
