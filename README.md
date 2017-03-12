@@ -35,7 +35,7 @@ func runAndCompareOutput(sub *godge.Submission, args []string, want string) erro
 		return err
 	}
 	defer sub.Executor.Stop()
-	time.Sleep(1 * time.Second)
+	<-sub.Executor.DieEvent()
 	got, err := sub.Executor.Stdout()
 	if err != nil {
 		return err
