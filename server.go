@@ -84,17 +84,17 @@ type SubmissionResponse struct {
 
 func (s *Server) submitHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
-		httpJsonError(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
+		httpJSONError(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
 		return
 	}
 	if username, password, ok := req.BasicAuth(); !ok || s.users[username] != password {
-		httpJsonError(w, "Wrong username or password", http.StatusUnauthorized)
+		httpJSONError(w, "Wrong username or password", http.StatusUnauthorized)
 		return
 	}
 	var sub Submission
 	err := json.NewDecoder(req.Body).Decode(&sub)
 	if err != nil {
-		httpJsonError(w, fmt.Sprintf("Failed to decode request body: %v", err), http.StatusBadRequest)
+		httpJSONError(w, fmt.Sprintf("Failed to decode request body: %v", err), http.StatusBadRequest)
 		return
 	}
 	sub.Executor.setDockerClient(s.dockerClient)
@@ -121,7 +121,7 @@ func (s *Server) submitHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		httpJsonError(w, "Failed to encode response", http.StatusInternalServerError)
+		httpJSONError(w, "Failed to encode response", http.StatusInternalServerError)
 		return
 	}
 }
@@ -133,24 +133,24 @@ type RegisterRequest struct {
 
 func (s *Server) registerHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodPost {
-		httpJsonError(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
+		httpJSONError(w, "Only POST requests are allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
 	var rreq RegisterRequest
 	err := json.NewDecoder(req.Body).Decode(&rreq)
 	if err != nil {
-		httpJsonError(w, fmt.Sprintf("Failed to decode request body: %v", err), http.StatusBadRequest)
+		httpJSONError(w, fmt.Sprintf("Failed to decode request body: %v", err), http.StatusBadRequest)
 		return
 	}
 
 	if len(rreq.Username) == 0 {
-		httpJsonError(w, fmt.Sprintf("Username cannot be empty"), http.StatusBadRequest)
+		httpJSONError(w, fmt.Sprintf("Username cannot be empty"), http.StatusBadRequest)
 		return
 	}
 
 	if _, ok := s.users[rreq.Username]; ok {
-		httpJsonError(w, fmt.Sprintf("Username %v is already registered", rreq.Username), http.StatusBadRequest)
+		httpJSONError(w, fmt.Sprintf("Username %v is already registered", rreq.Username), http.StatusBadRequest)
 		return
 	}
 
@@ -162,7 +162,7 @@ func (s *Server) registerHTTPHandler(w http.ResponseWriter, req *http.Request) {
 
 func (s *Server) tasksHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
-		httpJsonError(w, "Only GET requests are allowed", http.StatusMethodNotAllowed)
+		httpJSONError(w, "Only GET requests are allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -175,14 +175,14 @@ func (s *Server) tasksHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	w.WriteHeader(http.StatusOK)
 
 	if err := json.NewEncoder(w).Encode(ts); err != nil {
-		httpJsonError(w, "Failed to encode tasks", http.StatusInternalServerError)
+		httpJSONError(w, "Failed to encode tasks", http.StatusInternalServerError)
 		return
 	}
 }
 
 func (s *Server) scoreboardHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Method != http.MethodGet {
-		httpJsonError(w, "Only GET requests are allowed", http.StatusMethodNotAllowed)
+		httpJSONError(w, "Only GET requests are allowed", http.StatusMethodNotAllowed)
 		return
 	}
 

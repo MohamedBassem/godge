@@ -89,7 +89,7 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-func httpJsonError(w http.ResponseWriter, msg string, code int) {
+func httpJSONError(w http.ResponseWriter, msg string, code int) {
 	e := ErrorResponse{
 		Error: msg,
 	}
