@@ -3,10 +3,27 @@ package main
 import (
 	"fmt"
 	"log"
+	"math/rand"
 	"time"
 
 	"github.com/MohamedBassem/godge"
 )
+
+func runAndCompareOutput(sub *godge.Submission, args []string, want string) error {
+	if err := sub.Executor.Execute(args); err != nil {
+		return err
+	}
+	defer sub.Executor.Stop()
+	time.Sleep(1 * time.Second)
+	got, err := sub.Executor.Stdout()
+	if err != nil {
+		return err
+	}
+	if got != want {
+		return fmt.Errorf("want: %v, got: %v", want, got)
+	}
+	return nil
+}
 
 var tasks = []godge.Task{
 	{
@@ -16,31 +33,25 @@ var tasks = []godge.Task{
 			{
 				Name: "PrintsHelloWorld",
 				Func: func(sub *godge.Submission) error {
-					if err := sub.Executor.Execute([]string{}); err != nil {
-						return err
-					}
-					defer sub.Executor.Stop()
-					time.Sleep(1 * time.Second)
-					want := "Hello World!"
-					got, err := sub.Executor.Stdout()
-					if err != nil {
-						return err
-					}
-					if got != want {
-						return fmt.Errorf("want: %v, got: %v", want, got)
-					}
-					return nil
+					return runAndCompareOutput(sub, []string{}, "Hello World!")
 				},
 			},
 		},
 	},
 	{
-		Name: "WebServer",
+		Name: "Flags",
+		Desc: "The binary should accept the '--name' flag and prints 'Hello $name!' to stdout.",
 		Tests: []godge.Test{
 			{
-				Name: "RespondsWith200",
+				Name: "PrintsHelloJudge",
 				Func: func(sub *godge.Submission) error {
-					return nil
+					return runAndCompareOutput(sub, []string{"--name", "Judge"}, "Hello Judge!")
+				},
+			},
+			{
+				Name: "PrintsHelloUser",
+				Func: func(sub *godge.Submission) error {
+					return runAndCompareOutput(sub, []string{"--name", sub.Username}, fmt.Sprintf("Hello %v!", sub.Username))
 				},
 			},
 		},
@@ -48,6 +59,7 @@ var tasks = []godge.Task{
 }
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
 	server, err := godge.NewServer(":8080", "unix:///var/run/docker.sock")
 	if err != nil {
 		log.Fatal(err)
