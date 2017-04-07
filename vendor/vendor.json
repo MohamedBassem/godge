@@ -1,6 +1,13 @@
 {
 	"comment": "",
 	"ignore": "test",
-	"package": [],
+	"package": [
+		{
+			"checksumSHA1": "P8NVGrG1KbJD2PXeqnwm6cK0Fmo=",
+			"path": "github.com/jmoiron/sqlx",
+			"revision": "8ed836a8adb659e8492bcaa49e0880bb84075fe2",
+			"revisionTime": "2017-03-08T17:16:22Z"
+		}
+	],
 	"rootPath": "github.com/MohamedBassem/godge"
 }
