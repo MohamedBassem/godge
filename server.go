@@ -1,6 +1,7 @@
 package godge
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -8,38 +9,12 @@ import (
 	"sort"
 	"sync"
 
+	"golang.org/x/crypto/bcrypt"
+
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
 )
-
-type users struct {
-	sync.RWMutex
-	m map[string]string
-}
-
-func (u *users) get(username string) (string, bool) {
-	u.RLock()
-	defer u.RUnlock()
-	ret, ok := u.m[username]
-	return ret, ok
-}
-
-func (u *users) set(username, password string) {
-	u.Lock()
-	defer u.Unlock()
-	u.m[username] = password
-}
-
-func (u *users) usernames() []string {
-	u.RLock()
-	defer u.RUnlock()
-	var ret []string
-	for k := range u.m {
-		ret = append(ret, k)
-	}
-	return ret
-}
 
 type runningSubmissions struct {
 	sync.RWMutex
@@ -110,7 +85,6 @@ type Server struct {
 	pendingSubmissions chan submissionRequest
 	requestErrorChan   chan error
 	dockerClient       *docker.Client
-	users              users
 	scoreboard         scoreboard
 	runningSubmissions runningSubmissions
 	db                 *sqlx.DB
@@ -139,9 +113,6 @@ func NewServer(address string, dockerAddress string, dbpath string) (*Server, er
 		},
 		pendingSubmissions: make(chan submissionRequest),
 		dockerClient:       dc,
-		users: users{
-			m: make(map[string]string),
-		},
 		scoreboard: scoreboard{
 			m: make(map[string]map[string]string),
 		},
@@ -218,7 +189,7 @@ func (s *Server) submitHTTPHandler(w http.ResponseWriter, req *http.Request) {
 		httpJSONError(w, "Wrong username or password", http.StatusUnauthorized)
 		return
 	}
-	if u, _ := s.users.get(username); u != password {
+	if u, err := userQ.find(s.db, username); err != nil || !u.isCorrectPassword(password) {
 		httpJSONError(w, "Wrong username or password", http.StatusUnauthorized)
 		return
 	}
@@ -288,12 +259,22 @@ func (s *Server) registerHTTPHandler(w http.ResponseWriter, req *http.Request) {
 	}
 
 	// Make sure that the username is unique.
-	if _, ok := s.users.get(rreq.Username); ok {
+	if _, err := userQ.find(s.db, rreq.Username); err != sql.ErrNoRows {
 		httpJSONError(w, fmt.Sprintf("Username %v is already registered", rreq.Username), http.StatusBadRequest)
 		return
 	}
 
-	s.users.set(rreq.Username, rreq.Password)
+	encryptedPassword, err := bcrypt.GenerateFromPassword([]byte(rreq.Password), bcrypt.DefaultCost)
+	if err != nil {
+		httpJSONError(w, fmt.Sprintf("Failed to hash password: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	user := &user{Username: rreq.Username, Password: string(encryptedPassword)}
+	if err := user.save(s.db); err != nil {
+		httpJSONError(w, fmt.Sprintf("Failed to save user: %v", err), http.StatusInternalServerError)
+		return
+	}
 	log.Printf("User %v registered", rreq.Username)
 
 	w.WriteHeader(http.StatusCreated)
@@ -328,7 +309,11 @@ func (s *Server) scoreboardHTTPHandler(w http.ResponseWriter, req *http.Request)
 	ts := s.tasks.names()
 	sort.Strings(ts)
 
-	us := s.users.usernames()
+	us, err := userQ.usernames(s.db)
+	if err != nil {
+		httpJSONError(w, fmt.Sprintf("Failed to fetch users: %v", err), http.StatusInternalServerError)
+		return
+	}
 	sort.Strings(us)
 
 	scoreboard := s.scoreboard.toScoreboard(us, ts)
