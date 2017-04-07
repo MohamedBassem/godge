@@ -7,6 +7,12 @@
 			"path": "github.com/jmoiron/sqlx",
 			"revision": "8ed836a8adb659e8492bcaa49e0880bb84075fe2",
 			"revisionTime": "2017-03-08T17:16:22Z"
+		},
+		{
+			"checksumSHA1": "0YgW0+rmiIzLlvhIKlQ0s0olPg8=",
+			"path": "github.com/mattn/go-sqlite3",
+			"revision": "e5a3c16c5c1d80b24f633e68aecd6b0702786d3d",
+			"revisionTime": "2016-10-04T16:01:36Z"
 		}
 	],
 	"rootPath": "github.com/MohamedBassem/godge"
