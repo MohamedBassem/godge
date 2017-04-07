@@ -9,6 +9,8 @@ import (
 	"sync"
 
 	docker "github.com/fsouza/go-dockerclient"
+	"github.com/jmoiron/sqlx"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 type users struct {
@@ -111,12 +113,13 @@ type Server struct {
 	users              users
 	scoreboard         scoreboard
 	runningSubmissions runningSubmissions
+	db                 *sqlx.DB
 }
 
 // NewServer creates a new instance of the judge. It takes the address that the
 // judge will listen to and the address of the address daemon (e.g. unix:///var/run/docker.sock).
-// NewServer returns an error if it fails to connect to the docker daemon.
-func NewServer(address string, dockerAddress string) (*Server, error) {
+// NewServer returns an error if it fails to connect to the docker daemon or with the sqlite db.
+func NewServer(address string, dockerAddress string, dbpath string) (*Server, error) {
 	dc, err := docker.NewClient(dockerAddress)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to docker daemon: %v", err)
@@ -124,6 +127,11 @@ func NewServer(address string, dockerAddress string) (*Server, error) {
 	if err := dc.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to connect to docker daemon: %v", err)
 	}
+	db, err := sqlx.Connect("sqlite3", dbpath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to database: %v", err)
+	}
+
 	return &Server{
 		address: address,
 		tasks: tasks{
@@ -140,6 +148,7 @@ func NewServer(address string, dockerAddress string) (*Server, error) {
 		runningSubmissions: runningSubmissions{
 			m: make(map[string]*Submission),
 		},
+		db: db,
 	}, nil
 }
 
@@ -363,6 +372,9 @@ func (s *Server) proccessDockerEvents() {
 // Start starts the http server and the goroutine responsible for processing
 // the submissions.
 func (s *Server) Start() error {
+	if err := s.initDB(); err != nil {
+		return fmt.Errorf("failed to init the database: %v", err)
+	}
 	go s.processSubmissions()
 	go s.proccessDockerEvents()
 	mux := http.NewServeMux()

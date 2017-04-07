@@ -85,7 +85,7 @@ var tasks = []godge.Task{
 
 func main() {
 	rand.Seed(time.Now().UnixNano())
-	server, err := godge.NewServer(":8080", "unix:///var/run/docker.sock")
+	server, err := godge.NewServer(":8080", "unix:///var/run/docker.sock", "tmp.sqlite")
 	if err != nil {
 		log.Fatal(err)
 	}
