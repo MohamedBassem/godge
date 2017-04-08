@@ -9,19 +9,28 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/MohamedBassem/godge"
 )
 
 func zipCurrentDir() ([]byte, error) {
-	dir := "."
+	dir, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("Failed to get current dir: %v", err)
+	}
 	zipfile := new(bytes.Buffer)
 
 	archive := zip.NewWriter(zipfile)
 
-	_, err := os.Stat(dir)
+	info, err := os.Stat(dir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file stats: %v", err)
+	}
+
+	var baseDir string
+	if info.IsDir() {
+		baseDir = filepath.Base(dir)
 	}
 
 	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -34,14 +43,14 @@ func zipCurrentDir() ([]byte, error) {
 			return err
 		}
 
-		if !info.IsDir() {
-			header.Method = zip.Deflate
+		if baseDir != "" {
+			header.Name = strings.TrimPrefix(path, dir)
 		}
-
-		header.Name = path
 
 		if info.IsDir() {
 			header.Name += "/"
+		} else {
+			header.Method = zip.Deflate
 		}
 
 		writer, err := archive.CreateHeader(header)
