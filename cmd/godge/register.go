@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/MohamedBassem/godge"
 	"github.com/google/subcommands"
@@ -27,8 +28,8 @@ func (*registerCmd) Usage() string {
 }
 
 func (s *registerCmd) SetFlags(f *flag.FlagSet) {
-	f.StringVar(&s.username, "username", "", "The username you want to register with")
-	f.StringVar(&s.password, "password", "", "The password you want to register with")
+	f.StringVar(&s.username, "username", os.Getenv("GODGE_USERNAME"), "The username you want to register with")
+	f.StringVar(&s.password, "password", os.Getenv("GODGE_PASSWORD"), "The password you want to register with")
 }
 
 func (s *registerCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
