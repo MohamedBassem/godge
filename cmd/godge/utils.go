@@ -23,14 +23,8 @@ func zipCurrentDir() ([]byte, error) {
 
 	archive := zip.NewWriter(zipfile)
 
-	info, err := os.Stat(dir)
-	if err != nil {
+	if _, err := os.Stat(dir); err != nil {
 		return nil, fmt.Errorf("failed to read file stats: %v", err)
-	}
-
-	var baseDir string
-	if info.IsDir() {
-		baseDir = filepath.Base(dir)
 	}
 
 	err = filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
@@ -43,9 +37,7 @@ func zipCurrentDir() ([]byte, error) {
 			return err
 		}
 
-		if baseDir != "" {
-			header.Name = strings.TrimPrefix(path, dir)
-		}
+		header.Name = strings.Join(strings.Split(strings.TrimPrefix(path, dir), string(os.PathSeparator)), "/")
 
 		if info.IsDir() {
 			header.Name += "/"
