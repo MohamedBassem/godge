@@ -65,7 +65,7 @@ func buildScoreboard(db *sqlx.DB, allUsers, allTasks []string) ([][]string, erro
 	}
 
 	sort.Slice(ret, func(i, j int) bool {
-		return score(ret[i][1:]) < score(ret[j][1:])
+		return score(ret[i][1:]) > score(ret[j][1:])
 	})
 
 	header := append([]string{}, append([]string{""}, allTasks...)...)
