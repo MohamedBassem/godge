@@ -8,7 +8,7 @@ import (
 	"github.com/google/subcommands"
 )
 
-var serverAddress = flag.String("address", "", "The address of the server")
+var serverAddress = flag.String("address", os.Getenv("GODGE_ADDR"), "The address of the server")
 
 func main() {
 	subcommands.ImportantFlag("address")
