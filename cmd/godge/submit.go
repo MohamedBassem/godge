@@ -32,8 +32,8 @@ func (*submitCmd) Usage() string {
 func (s *submitCmd) SetFlags(f *flag.FlagSet) {
 	f.StringVar(&s.language, "language", "", "The language of the submission")
 	f.StringVar(&s.taskName, "task", "", "The task of the submission")
-	f.StringVar(&s.username, "username", "", "Your username")
-	f.StringVar(&s.password, "password", "", "Your password")
+	f.StringVar(&s.username, "username", os.Getenv("GODGE_USERNAME"), "Your username")
+	f.StringVar(&s.password, "password", os.Getenv("GODGE_PASSWORD"), "Your password")
 }
 
 func (s *submitCmd) Execute(_ context.Context, f *flag.FlagSet, _ ...interface{}) subcommands.ExitStatus {
