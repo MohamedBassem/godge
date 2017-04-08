@@ -151,10 +151,10 @@ then uses the image `golang:1.8` to build and run the package.
 
 1- Currently `Go` is the only supported language.
 
-2- All the data (scoreboard, tasks and users) are stored in the server's memory. All the
+~~2- All the data (scoreboard, tasks and users) are stored in the server's memory. All the
 data will be lost if the server is restarted. Although it's not a problem for meetups or
 workshop as they are short by nature, it would be nice to persist this info in a `sqlite`
-database for example.
+database for example.~~
 
 3- The `Execute` function should allow opening ports in the container to be able to test
 web servers for example.
