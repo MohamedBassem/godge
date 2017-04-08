@@ -85,7 +85,6 @@ type Server struct {
 	pendingSubmissions chan submissionRequest
 	requestErrorChan   chan error
 	dockerClient       *docker.Client
-	scoreboard         scoreboard
 	runningSubmissions runningSubmissions
 	db                 *sqlx.DB
 }
@@ -113,9 +112,6 @@ func NewServer(address string, dockerAddress string, dbpath string) (*Server, er
 		},
 		pendingSubmissions: make(chan submissionRequest),
 		dockerClient:       dc,
-		scoreboard: scoreboard{
-			m: make(map[string]map[string]string),
-		},
 		runningSubmissions: runningSubmissions{
 			m: make(map[string]*Submission),
 		},
@@ -154,10 +150,10 @@ type submissionRequest struct {
 func (s *Server) reportResult(sub *Submission, err error) {
 	log.Printf("%v submission for %v: %v", sub.Language, sub.TaskName, err)
 	if err != nil {
-		s.scoreboard.set(sub.Username, sub.TaskName, failedVerdict)
+		saveToScoreboard(s.db, sub.Username, sub.TaskName, failedVerdict)
 		return
 	}
-	s.scoreboard.set(sub.Username, sub.TaskName, passedVerdict)
+	saveToScoreboard(s.db, sub.Username, sub.TaskName, passedVerdict)
 }
 
 // Executes the tests and report the result back to the http handler and the
@@ -316,7 +312,11 @@ func (s *Server) scoreboardHTTPHandler(w http.ResponseWriter, req *http.Request)
 	}
 	sort.Strings(us)
 
-	scoreboard := s.scoreboard.toScoreboard(us, ts)
+	scoreboard, err := buildScoreboard(s.db, us, ts)
+	if err != nil {
+		httpJSONError(w, fmt.Sprintf("Failed to build scoreboard: %v", err), http.StatusInternalServerError)
+		return
+	}
 
 	scoreboardTmpl.Execute(w, map[string]interface{}{
 		"Scoreboard": scoreboard,

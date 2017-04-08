@@ -34,7 +34,7 @@ func (*userQuery) find(db *sqlx.DB, username string) (*user, error) {
 
 func (*userQuery) findAll(db *sqlx.DB) ([]user, error) {
 	u := []user{}
-	if err := db.Get(&u, "SELECT * FROM users"); err != nil {
+	if err := db.Select(&u, "SELECT * FROM users"); err != nil {
 		return nil, err
 	}
 	return u, nil

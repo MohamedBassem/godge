@@ -8,12 +8,12 @@ func (s *Server) initDB() error {
     password varchar(255)
 	);
 
-	CREATE TABLE IF NOT EXISTS submission (
+	CREATE TABLE IF NOT EXISTS scoreboard (
 		id INTEGER PRIMARY KEY,
-		user_id INTEGER,
+		username INTEGER,
 		task_name varchar(255),
-		language varchar(255),
-		verdict varchar(255)
+		verdict varchar(255),
+		submitted_at DATETIME
 	);
 	`
 	_, err := s.db.Exec(schema)
